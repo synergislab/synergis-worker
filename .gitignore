@@ -1,0 +1,17 @@
+deployaws
+*.pyc
+*.csv
+*~
+*.7z
+*.zip
+*.xlsx
+*.xls
+*._py
+*.log
+db/
+doc/
+cert/
+temp*
+
+
+
