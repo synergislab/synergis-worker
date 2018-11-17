@@ -6,7 +6,8 @@ from web3 import Web3, HTTPProvider, IPCProvider, WebsocketProvider
 import time
 import settings
 import pymongo
-
+from settings import SYNPAT_CONF
+import steem
 def handle_event_Confirm(event):
     """
     This function searce wallet from event  in DB  and  mark it as confirmed
@@ -58,6 +59,19 @@ def handler_post_write(_p):
     Write post to steem
     """
     logging.debug(_p)
+    r = client.commit.post(
+        title=_p.get('steemtitle','Synpat service article'), 
+        body=_p.get('steembody','This is a place for some ideas'), 
+        author=SYNPAT_CONF['STEEM_SYNPAT_AUTHOR'], 
+        tags=[SYNPAT_CONF['STEEM_TAG']]+_p.get('steemtags',[]), 
+        permlink=_p.get('steempermlink', None),
+        community = 'synergislab_community',
+        json_metadata ={
+            'eth':_p.get('ethaddr',settings.ADDRESS_OPERATOR),
+            'app':'synpat'
+        } 
+    )
+    logging.debug(r)
     #Check for params
     # if  (w3.isAddress(_op['params']['content_provider_acc']) 
     #     and _op['params']['amount'] != 0
@@ -84,6 +98,24 @@ def handler_post_write(_p):
     #         )
     #         logging.debug(res)
 
+def write_to_steem(_items):
+    """
+    write post to steem block and update record status in db
+    """
+    logging.debug('write_to_steem')
+    logging.debug(_items)
+    title = 'Post ' + str(time.time())
+    body = 'Новость'
+    #author = 'mstest'
+    author = 'maxsiz'
+    taglist = ['synergislab', 'te']
+    permlink = 'fixedpermlink4'
+    community = 'synergislab_community'
+    r = client.commit.post(title=title, body=body, author=author, tags=taglist, 
+        permlink=permlink, 
+         community = community,
+         json_metadata ={'eth':'0x1234567897845462313'} 
+    )
 
 
 def log_loop(event_filter, poll_interval):
@@ -185,6 +217,12 @@ synpatregister = w3.eth.contract(address=settings.ADDRESS_SYNPATREGISTER,
 mongo_client = pymongo.MongoClient(settings.MONGO_URI)
 db = mongo_client.eve
 posts  = db.posts
+
+
+#Steem initializing   
+client = steem.Steem(no_broadcast=False,
+    keys=[SYNPAT_CONF['STEEM_POSTING_PK'],SYNPAT_CONF['STEEM_ACTIVE_PK']]
+)
 
 
 #logging.debug(proofOfConnect.functions.version().call())

@@ -26,6 +26,17 @@ START_FROM = 3257839
 MONGO_URI = os.environ.get('MONGODB_URI', 'mongodb://172.18.0.3/')
 MONGO_DBNAME = 'eve'
 
+###############################
+### Synpat settings       #####
+###############################
+SYNPAT_CONF = {
+'SMARTCONTRACT' :'',
+'STEEM_TAG'      : 'testsynergis',
+'STEEM_SYNPAT_AUTHOR':'maxsiz',
+'STEEM_POSTING_PK' :'5Kb1scKxP5cP4bujsPmL6z5YnRfEkMwWA1JidvV9DeddKRVPMhr',
+'STEEM_ACTIVE_PK' :'5KWKj7TVQwnzk4awfAFEqfk9q54mUJDN8ycKLUqgCJREy6EZcTP'
+}
+
 if __name__ == '__main__':
     from web3 import Web3, HTTPProvider, IPCProvider, WebsocketProvider
     #web3 provider initializing
