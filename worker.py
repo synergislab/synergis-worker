@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+import sys
 import json
 from web3 import Web3, HTTPProvider, IPCProvider, WebsocketProvider
 import time
@@ -8,6 +9,7 @@ import settings
 import pymongo
 from settings import SYNPAT_CONF
 import steem
+from steembase.exceptions import RPCError, RPCErrorRecoverable, PostOnlyEvery5Min
 def handle_event_Confirm(event):
     """
     This function searce wallet from event  in DB  and  mark it as confirmed
@@ -56,22 +58,41 @@ def handle_event_SimpleEvent(event):
     
 def handler_post_write(_p):
     """
-    Write post to steem
+    Write post to steem.  Returns tuple(boolean, [<obj>|str])
     """
     logging.debug(_p)
-    r = client.commit.post(
-        title=_p.get('steemtitle','Synpat service article'), 
-        body=_p.get('steembody','This is a place for some ideas'), 
-        author=SYNPAT_CONF['STEEM_SYNPAT_AUTHOR'], 
-        tags=[SYNPAT_CONF['STEEM_TAG']]+_p.get('steemtags',[]), 
-        permlink=_p.get('steempermlink', None),
-        community = 'synergislab_community',
-        json_metadata ={
-            'eth':_p.get('ethaddr',settings.ADDRESS_OPERATOR),
-            'app':'synpat'
-        } 
-    )
-    logging.debug(r)
+    try:
+        r = client.commit.post(
+            title=_p.get('steemtitle','Synpat service article'), 
+            body=_p.get('steembody','This is a place for some ideas'), 
+            author=SYNPAT_CONF['STEEM_SYNPAT_AUTHOR'], 
+            #author='mstest',
+            tags=[SYNPAT_CONF['STEEM_TAG']]+_p.get('steemtags',[]), 
+            permlink=_p.get('steempermlink', None),
+            community = 'synergislab_community',
+            json_metadata ={
+                'eth':_p.get('ethaddr',settings.ADDRESS_OPERATOR),
+                'app':'synpat'
+            } 
+        )
+    except  PostOnlyEvery5Min as e :
+        #Need inc poll intervall
+        poll_interval = 300
+        logging.debug(e.args)
+        logging.debug(r)
+        logging.debug('Poll interval increased')
+        res = (False, 'PostOnlyEvery5Min')
+    except  :
+        logging.debug('All other error')  
+        logging.debug(sys.exc_info()[0:2])
+        res = (False, str(sys.exc_info()[1]))
+    else:
+        #Write -OK, that why we may decrease poll interval to default value
+        poll_interval = 12
+        logging.debug(r)
+        res = (True, r)
+    return res
+
     #Check for params
     # if  (w3.isAddress(_op['params']['content_provider_acc']) 
     #     and _op['params']['amount'] != 0
@@ -98,27 +119,27 @@ def handler_post_write(_p):
     #         )
     #         logging.debug(res)
 
-def write_to_steem(_items):
-    """
-    write post to steem block and update record status in db
-    """
-    logging.debug('write_to_steem')
-    logging.debug(_items)
-    title = 'Post ' + str(time.time())
-    body = 'Новость'
-    #author = 'mstest'
-    author = 'maxsiz'
-    taglist = ['synergislab', 'te']
-    permlink = 'fixedpermlink4'
-    community = 'synergislab_community'
-    r = client.commit.post(title=title, body=body, author=author, tags=taglist, 
-        permlink=permlink, 
-         community = community,
-         json_metadata ={'eth':'0x1234567897845462313'} 
-    )
+# def write_to_steem(_items):
+#     """
+#     write post to steem block and update record status in db
+#     """
+#     logging.debug('write_to_steem')
+#     logging.debug(_items)
+#     title = 'Post ' + str(time.time())
+#     body = 'Новость'
+#     #author = 'mstest'
+#     author = 'maxsiz'
+#     taglist = ['synergislab', 'te']
+#     permlink = 'fixedpermlink4'
+#     community = 'synergislab_community'
+#     r = client.commit.post(title=title, body=body, author=author, tags=taglist, 
+#         permlink=permlink, 
+#          community = community,
+#          json_metadata ={'eth':'0x1234567897845462313'} 
+#     )
 
 
-def log_loop(event_filter, poll_interval):
+def log_loop(event_filter):
     """
     Main loop for events from ExoRegister smartcontract
     """
@@ -141,7 +162,41 @@ def log_loop(event_filter, poll_interval):
         if  p is not None:
             #operations handler selector
             #if  p['optype']=='connect':
-            handler_post_write(p)
+            r = handler_post_write(p)
+            if  r[0]:
+                #Let`s update db record with status and some fields
+                res = posts.update_one(
+                    {'_id':p['_id']},
+                    {'$set': 
+                        {
+                            'steempermlink':r[1]['operations'][0][1]['permlink'],
+                            'steemauthor'  :r[1]['operations'][0][1]['author'],
+                            'state':'steemed'
+                        },
+                    }
+                )
+                logging.debug('db update with permlink')
+                logging.debug(str(res))
+            else:
+                res = posts.update_one(
+                    {'_id':p['_id']},
+                    {'$set': 
+                        {
+                            'state':r[1]
+                        },
+                    }
+                )
+                logging.debug('db update with err')
+                logging.debug(str(res))
+
+        #new posts for Ethereum processing        
+        p = posts.find_one({'state':'steemed'});
+        logging.debug('********Ethereum operations start')
+        logging.debug(p)
+        if  p is not None:
+            #Now  let`s save post hash in Ethereum blockchain
+
+            pass
         time.sleep(poll_interval)
 
 def main():
@@ -173,7 +228,7 @@ def main():
         # for event in filters[1].get_all_entries():
         #     handle_event_Transfer(event)
 
-    log_loop(filters, 12)
+    log_loop(filters)
 ####################################################################
 ####################################################################
 
@@ -224,6 +279,7 @@ client = steem.Steem(no_broadcast=False,
     keys=[SYNPAT_CONF['STEEM_POSTING_PK'],SYNPAT_CONF['STEEM_ACTIVE_PK']]
 )
 
+poll_interval = 12
 
 #logging.debug(proofOfConnect.functions.version().call())
 ###########################################
