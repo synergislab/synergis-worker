@@ -5,6 +5,7 @@ import json
 
 #Some common params
 WEB3_PROVIDER = os.environ.get('WEB3_PROVIDER','wss://rinkeby.infura.io/ws/v3/22238a03c4ce4f6e9b2a3e0e899a77e6')
+WEB3_NETWORK = 4
 #New infura
 #https://rinkeby.infura.io/v3/22238a03c4ce4f6e9b2a3e0e899a77e6
 #https://mainnet.infura.io/v3/22238a03c4ce4f6e9b2a3e0e899a77e6
@@ -14,11 +15,11 @@ WEB3_PROVIDER = os.environ.get('WEB3_PROVIDER','wss://rinkeby.infura.io/ws/v3/22
 #w3 = Web3(HTTPProvider('http://127.0.0.1:8545'))
 #w3 = Web3(Web3.WebsocketProvider("ws://172.31.21.15:8546"))
 #
-ADDRESS_SYNPATREGISTER = '0xeBE8708A58D7BA56e91677e99cA117CA1F32C9a9'
+ADDRESS_SYNPATREGISTER = '0x128CB817Be464DE1df828FB1f44B4d28C7E7e1d8'
 ADDRESS_OPERATOR = '0xafB42ffDC859f82eDb3E93680F95212200f0CCA1'
-PK_OPERATOR = os.environ.get('PK_OPERATOR','12345678')
+PK_OPERATOR = os.environ.get('PK_OPERATOR','384D9719F2CDFA068A58811541AA1A6059306A4AE61A0A360EE6443D3F610977')
 # contracts ABI (!!!!! true->True, false ->False    - Python style)
-ABI_SYNPATREGISTER = json.loads('[{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"confirmMyWallet","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"getEvenet","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":false,"name":"_when","type":"uint64"}],"name":"Confirm","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":false,"name":"_when","type":"uint64"}],"name":"SimpleEvent","type":"event"}]')
+ABI_SYNPATREGISTER = json.loads('[{"constant":true,"inputs":[{"name":"_hashinput","type":"string"}],"name":"calculateSha3","outputs":[{"name":"","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[],"name":"kill","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_permlink","type":"string"},{"name":"_hashSha","type":"bytes32"}],"name":"writeSha3","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"pendingOwner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_permlink","type":"string"},{"name":"_hashinput","type":"string"}],"name":"calculateAndWriteSha3","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"payable":false,"stateMutability":"nonpayable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":false,"name":"_permlink","type":"string"},{"indexed":false,"name":"_hashSha","type":"bytes32"}],"name":"SynpatRecord","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}]')
 
 START_FROM = 3257839
 # We want to seamlessy run our API both locally and on Heroku. If running on
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     else:
         w3 = Web3(IPCProvider(WEB3_PROVIDER))
     print('w3.eth.blockNumber=' + str(w3.eth.blockNumber))
-    print(MONGO_URI)
+    print('====================> MONGO_URI:'+str(MONGO_URI))
 
     # #Need some injection on Rinkeby and -dev networks  - not work with infura
     # if  w3.admin.nodeInfo['protocols']['eth']['network'] == 4:

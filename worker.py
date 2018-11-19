@@ -139,23 +139,27 @@ def handler_post_write(_p):
 #     )
 
 
-def log_loop(event_filter):
+def log_loop(event_filter=[]):
     """
-    Main loop for events from ExoRegister smartcontract
+    Main loop 
     """
     while True:
+        ##################################        
+        ##################################
         #w3 events from smart contracts ("w3.eth.filter" type )
-        for event in event_filter[0].get_new_entries():
-            #handler selector
-            if  event['topics'][0] == w3.sha3(text='Confirm(address,uint64)'):
-                handle_event_Confirm(event)
-            elif event['topics'][0] == w3.sha3(text='SimpleEvent(address,uint64)'):
-                handle_event_SimpleEvent(event)
+        # for event in event_filter[0].get_new_entries():
+        #     #handler selector
+        #     if  event['topics'][0] == w3.sha3(text='Confirm(address,uint64)'):
+        #         handle_event_Confirm(event)
+        #     elif event['topics'][0] == w3.sha3(text='SimpleEvent(address,uint64)'):
+        #         handle_event_SimpleEvent(event)
         
         # #w3 events from smart contracts (!!!!another filter type)
         # for event in event_filter[1].get_new_entries():
         #     handle_event_Transfer(event)
         
+        ##################################        
+        ##################################
         #new posts for steem processing
         p = posts.find_one({'state':'new'});
         logging.debug(p)
@@ -188,47 +192,128 @@ def log_loop(event_filter):
                 )
                 logging.debug('db update with err')
                 logging.debug(str(res))
-
+        ##################################        
+        ##################################
         #new posts for Ethereum processing        
-        p = posts.find_one({'state':'steemed'});
+        p = posts.find_one(
+            {'state':'steemed', 
+             #'ethaddr': settings.ADDRESS_OPERATOR
+            }
+        )
         logging.debug('********Ethereum operations start')
         logging.debug(p)
         if  p is not None:
-            #Now  let`s save post hash in Ethereum blockchain
-
-            pass
+            #Let`s get steem post from steem blockchain
+            steem_post = client.get_content(p['steemauthor'], p['steempermlink'])
+            #Check existing of steem post
+            if  steem_post['id'] != 0 :
+                logging.debug('**Post from stemm:')
+                logging.debug(steem_post)
+                nonce=w3.eth.getTransactionCount(eval(steem_post['json_metadata'])['eth'])
+                logging.debug(nonce)
+                #Now  let`s save post hash in Ethereum blockchain
+                #First build transaction
+                tx = synpatregister.functions.writeSha3(
+                    steem_post['url'], #/category/@author/permlink
+                    w3.soliditySha3(
+                        ['string', 'string'], 
+                        [steem_post['title'],steem_post['body']]
+                    )
+                ).buildTransaction(
+                    {
+                        ###########################
+                        #  !!!! Check Params below 
+                        ###########################
+                         'chainId': settings.WEB3_NETWORK,
+                         'gasPrice': w3.toWei('16', 'gwei'),
+                        ########################### 
+                         'nonce': nonce,
+                    }
+                )
+                logging.debug('*****Tx ready for sign***')
+                logging.debug(tx)
+                #Save tx to db  for next sign
+                res = posts.update_one(
+                    {'_id':p['_id']},
+                    {
+                        '$set':{
+                            'state'  :'readyForSign',
+                            'ethaddr': eval(steem_post['json_metadata'])['eth'],
+                        },
+                        '$addToSet':{'blockchainplus':{
+                            'txForSign': tx,
+                        }
+                       }
+                    }
+                )
+                logging.debug('db update with tx and readyForSign state')
+                logging.debug(res)
+                #If eth address from post match to settings.ADDRESS_OPERATOR
+                # - sign and send tx
+                if  (eval(steem_post['json_metadata'])['eth'] 
+                     == settings.ADDRESS_OPERATOR
+                    ):
+                    signed = w3.eth.account.signTransaction(tx, settings.PK_OPERATOR)
+                    logging.debug('*signed tx:')
+                    logging.debug(signed)
+                    res = posts.update_one(
+                        {'_id':p['_id']},
+                        {
+                            '$set':{
+                                'state'  :'ethSigned',
+                                'blockchainplus.$[].txForSign':None,
+                                'blockchainplus.$[].txHash': signed.hash.hex(),
+                            },
+                        }
+                    )
+                    #sending
+                    r = w3.eth.sendRawTransaction(signed.rawTransaction)
+                    logging.debug('*Rawtx sended:')
+                    logging.debug(r)
+                    if  r == signed.hash :
+                        res = posts.update_one(
+                            {'_id':p['_id']},
+                            {
+                                '$set':{
+                                    'state'  :'ethPending',
+                                },
+                            }
+                        )
+        ###########################################        
+        ###########################################
+        #new posts for check tx status in Ethereum        
+        p = posts.find_one(
+            {'state':'ethPending'}
+        )
+        logging.debug('********Operations for check tx status in Ethereum')
+        logging.debug(p)
+        if  p is not None:
+            r = w3.eth.getTransactionReceipt(p['blockchainplus'][0]['txHash'])
+            logging.debug('Tx Receipt')
+            logging.debug(r)
+            if  r is not None :
+                #Update status from Receipt
+                if  r['status'] != 0 :
+                    tx_state = 'Success'
+                else:
+                    tx_state = 'Failure'
+                    #tx Fail
+                res = posts.update_one(
+                            {
+                                    '_id':p['_id'],
+                                    #{'blockchainplus':{'$elemMatch':{'txHash':r['transactionHash']}}}
+                            },
+                            {
+                                '$set':{
+                                    'state'  :tx_state,
+                                    'blockchainplus.$[].blockNumber': r['blockNumber'],
+                                },
+                            }
+                        )
         time.sleep(poll_interval)
 
 def main():
-    #Define filters and start loop
-    Synpatreg_filter = w3.eth.filter(
-         {
-         "address": settings.ADDRESS_SYNPATREGISTER,
-        }
-    )
-
-
-    # Exotoken_filter = synpatregister.events.Transfer.createFilter(
-    #     fromBlock=settings.START_FROM
-    # )
-
-
-    filters = [
-        #Exoreg_filter,
-        Synpatreg_filter
-    ]
-    #log_loop(Exoreg_filter, 12)
-    # in case starting from the   past (blocNumber)
-    if  settings.START_FROM != 'latest' :
-        for event in filters[0].get_all_entries():
-            #handler selector
-            if  event['topics'][0] == w3.sha3(text='Confirm(address,uint64)'):
-                handle_event_Confirm(event)
-        
-        # for event in filters[1].get_all_entries():
-        #     handle_event_Transfer(event)
-
-    log_loop(filters)
+    log_loop()
 ####################################################################
 ####################################################################
 
@@ -255,6 +340,9 @@ elif ('ws:'.upper() in settings.WEB3_PROVIDER.upper() or
     w3 = Web3(Web3.WebsocketProvider(settings.WEB3_PROVIDER))    
 else:
     w3 = Web3(IPCProvider(settings.WEB3_PROVIDER))
+#
+#    !!!!!TODO try/except
+#    
 logging.info('w3.eth.blockNumber=' + str(w3.eth.blockNumber))
 w3.eth.defaultAccount  = settings.ADDRESS_OPERATOR
 
