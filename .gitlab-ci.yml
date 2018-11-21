@@ -1,0 +1,78 @@
+image: docker:stable
+services:
+  - docker:dind
+
+stages:
+  - build-production
+  - deploy-production
+  - build-test
+  - deploy-test
+
+before_script:
+  #- docker info
+  #- docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+  #- docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+variables:
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    # improved performance.
+  DOCKER_DRIVER: overlay2
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:test
+  CONTAINER_PROD_IMAGE: $CI_REGISTRY_IMAGE:prod
+  #
+
+build-test:
+  stage: build-test
+  tags:
+    - indock
+    #- docker
+  only:
+    - test  
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build --pull --build-arg ENV="testenv" -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+    - export
+    
+deploy-test:
+  stage: deploy-test
+  tags:
+    - test-dpl
+  only:
+    - test
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - /usr/local/bin/docker-compose up -d
+    - /usr/local/bin/docker-compose rm --force 
+    - docker system prune --volumes  --force 
+
+build-production:
+  #image: "registry.gitlab.com/max_siz/synergis-api:remotemongo"
+  stage: build-production
+  tags:
+    - indock
+  only:
+    - master
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build --pull --build-arg ENV="production" -t $CONTAINER_PROD_IMAGE .
+    - docker push $CONTAINER_PROD_IMAGE
+    - export
+
+deploy-production:
+  #image: docker:master
+  stage: deploy-production
+  tags:
+    - prod-dpl
+  only:
+    - master
+  variables:
+    #DOCKER_HOST: 'unix:///var/run/docker.sock'
+  script:
+    #- export
+    #- ip address
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_PROD_IMAGE
+    - docker-compose up -d
+    - docker-compose rm --force
+    - docker system prune --volumes  --force
