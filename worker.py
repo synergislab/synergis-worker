@@ -15,6 +15,7 @@ def handler_post_write(_p):
     Write post to steem.  Returns tuple(boolean, [<obj>|str])
     """
     logging.debug(_p)
+    global last_steem_write
     try:
         r = client.commit.post(
             title=_p.get('steemtitle','Synpat service article'), 
@@ -30,19 +31,25 @@ def handler_post_write(_p):
             } 
         )
     except  PostOnlyEvery5Min as e :
+        # This  part not  work on dev moment(20181121)
+        # In fact there is RPCError occur when write interval too shot
         #Need inc poll intervall
-        poll_interval = 300
+        #poll_interval = 300
         logging.debug(e.args)
         logging.debug(r)
         logging.debug('Poll interval increased')
         res = (False, 'PostOnlyEvery5Min')
+        last_steem_write = int(time.time())
     except  :
         logging.debug('All other error')  
         logging.debug(sys.exc_info()[0:2])
         res = (False, str(sys.exc_info()[1]))
+        last_steem_write = int(time.time())
     else:
         #Write -OK, that why we may decrease poll interval to default value
-        poll_interval = 12
+        last_steem_write = int(time.time())
+        logging.debug('last_steem_write set to '+ str(last_steem_write))
+        #poll_interval = 12
         logging.debug(r)
         res = (True, r)
     return res
@@ -71,37 +78,40 @@ def log_loop(event_filter=[]):
             ##################################        
             ##################################
             #new posts for steem processing
-            p = posts.find_one({'state':'new'});
-            logging.debug(p)
-            if  p is not None:
-                r = handler_post_write(p)
-                if  r[0]:
-                    #Let`s update db record with status and some fields
-                    res = posts.update_one(
-                        {'_id':p['_id']},
-                        {'$set': 
-                            {
-                                'steempermlink':r[1]['operations'][0][1]['permlink'],
-                                'steemauthor'  :r[1]['operations'][0][1]['author'],
-                                'steemtitle'   :r[1]['operations'][0][1]['title'],
-                                'steembody'    :r[1]['operations'][0][1]['body'],
-                                'state':'steemed'
-                            },
-                        }
-                    )
-                    logging.debug('db update with permlink')
-                    logging.debug(str(res))
-                else:
-                    res = posts.update_one(
-                        {'_id':p['_id']},
-                        {'$set': 
-                            {
-                                'state':r[1]
-                            },
-                        }
-                    )
-                    logging.debug('db update with err')
-                    logging.debug(str(res))
+            write_interval = int(time.time())-last_steem_write
+            logging.debug('write_interval='+ str(write_interval))
+            if  write_interval > 300:
+                p = posts.find_one({'state':'new'});
+                logging.debug(p)
+                if  p is not None:
+                    r = handler_post_write(p)
+                    if  r[0]:
+                        #Let`s update db record with status and some fields
+                        res = posts.update_one(
+                            {'_id':p['_id']},
+                            {'$set': 
+                                {
+                                    'steempermlink':r[1]['operations'][0][1]['permlink'],
+                                    'steemauthor'  :r[1]['operations'][0][1]['author'],
+                                    'steemtitle'   :r[1]['operations'][0][1]['title'],
+                                    'steembody'    :r[1]['operations'][0][1]['body'],
+                                    'state':'steemed'
+                                },
+                            }
+                        )
+                        logging.debug('db update with permlink')
+                        logging.debug(str(res))
+                    else:
+                        res = posts.update_one(
+                            {'_id':p['_id']},
+                            {'$set': 
+                                {
+                                    'state':r[1]
+                                },
+                            }
+                        )
+                        logging.debug('db update with err')
+                        logging.debug(str(res))
             ##################################        
             ##################################
             #new posts for Ethereum processing        
@@ -296,6 +306,7 @@ client = steem.Steem(no_broadcast=False,
 )
 
 poll_interval = 12
+last_steem_write = 0
 
 #logging.debug(proofOfConnect.functions.version().call())
 ###########################################
