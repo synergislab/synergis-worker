@@ -19,4 +19,4 @@ EXPOSE 5000
 ENV NAME IberGroup
 
 # Run app.py when the container launches
-CMD ["python", "run.py"]
+CMD ["python", "worker.py"]
