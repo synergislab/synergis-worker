@@ -24,7 +24,7 @@ def handler_post_write(_p):
             #author='mstest',
             tags=[settings.STEEM_TAG]+_p.get('steemtags',[]), 
             permlink=_p.get('steempermlink', None),
-            community = 'synergislab_community',
+            community = 'Synergis',
             json_metadata ={
                 'eth':_p.get('ethaddr',settings.ADDRESS_OPERATOR),
                 'app':'synpat'
