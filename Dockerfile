@@ -13,7 +13,7 @@ ADD . /app
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
 
 # Make port 5000 available to the world outside this container
-EXPOSE 5000
+# EXPOSE 5000
 
 # Define environment variable
 ENV NAME IberGroup
