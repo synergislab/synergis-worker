@@ -305,8 +305,10 @@ client = steem.Steem(no_broadcast=False,
     keys=[settings.STEEM_POSTING_PK , settings.STEEM_ACTIVE_PK]
 )
 try:
-    logging.debug('Steem init check...')
-    r = client.get_content(author, permlink)
+    logging.debug('************Steem init check...')
+    logging.debug('STEEM_POSTING_PK like = ' + settings.STEEM_POSTING_PK[:7])
+    logging.debug('STEEM_POSTING_PK like = ' + settings.STEEM_ACTIVE_PK[:7])
+    r = client.get_content('menaskop', 'fixedpermlink')
     logging.debug(r)
 except Exception as e:
     logging.debug(e)
