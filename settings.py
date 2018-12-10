@@ -22,10 +22,10 @@ if  ENVIRON == 'TEST' :
     STEEM_SYNPAT_AUTHOR = 'maxsiz'
 else: #PROD settings
     WEB3_NETWORK = 1
-    ADDRESS_SYNPATREGISTER = ''
-    ADDRESS_OPERATOR = ''
+    ADDRESS_SYNPATREGISTER = '0x2350b874D0EFf523c5847223eB7144e1E56f06cE'
+    ADDRESS_OPERATOR = '0xDDA2F2E159d2Ce413Bd0e1dF5988Ee7A803432E3'
     STEEM_TAG = 'synpat'
-    STEEM_SYNPAT_AUTHOR = 'maxsiz'
+    STEEM_SYNPAT_AUTHOR = 'menaskop'
 
 # contracts ABI (!!!!! true->True, false ->False    - Python style)
 ABI_SYNPATREGISTER = json.loads('[{"constant":true,"inputs":[{"name":"_hashinput","type":"string"}],"name":"calculateSha3","outputs":[{"name":"","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[],"name":"kill","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"permlinkSaved","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_permlink","type":"string"},{"name":"_hashSha","type":"bytes32"}],"name":"writeSha3","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"pendingOwner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"payable":false,"stateMutability":"nonpayable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":true,"name":"permlinkSaved_permlink","type":"string"},{"indexed":false,"name":"_hashSha","type":"bytes32"}],"name":"SynpatRecord","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}]')
