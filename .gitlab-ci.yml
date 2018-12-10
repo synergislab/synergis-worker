@@ -23,7 +23,7 @@ variables:
 build-test:
   stage: build-test
   tags:
-    - indock
+    - synprod
     #- docker
   only:
     - test  
