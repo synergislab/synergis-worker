@@ -304,6 +304,13 @@ posts  = db.posts
 client = steem.Steem(no_broadcast=False,
     keys=[settings.STEEM_POSTING_PK , settings.STEEM_ACTIVE_PK]
 )
+try:
+    logging.debug('Steem init check...')
+    r = client.get_content(author, permlink)
+    logging.debug(r)
+except Exception as e:
+    logging.debug(e)
+
 
 poll_interval = 12
 last_steem_write = 0
